@@ -1,7 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// Supabase 전체 URL 및 anon 키 (말줄임 없이 완전한 값)
 const supabase = createClient(
   "https://vgskyyihyqkpxjhsngzb.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnc2t5eWloeXFrcHhqaHNuZ3piIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyMjI3MTEsImV4cCI6MjA1OTc5ODcxMX0.JeKYryWZbC2Fr49lHT0sp54Mcc9jjqMwme6AhNb3Gz8"
@@ -29,7 +29,7 @@ export default function RoomStatusBoard() {
       const state = {};
       rooms.forEach((r) => {
         const found = data?.find((d) => d.room === r);
-        state[r] = found ? found.status : "비어있음"; // ❗ 기본값 자동 지정
+        state[r] = found ? found.status : "비어있음";
       });
 
       setStatus(state);
@@ -48,28 +48,57 @@ export default function RoomStatusBoard() {
     });
   };
 
+  const resetAll = async () => {
+    const updates = rooms.map((room) => ({
+      room,
+      status: "비어있음",
+      updated_at: new Date().toISOString()
+    }));
+    setStatus(Object.fromEntries(rooms.map(r => [r, "비어있음"])));
+    await supabase.from("rooms").upsert(updates);
+  };
+
   return (
-    <div style={{ padding: 20, display: "flex", flexWrap: "wrap", gap: 12 }}>
-      {rooms.map((r) => (
+    <div style={{ padding: 10 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
         <button
-          key={r}
-          onClick={() => cycle(r)}
+          onClick={resetAll}
           style={{
             padding: 16,
             minWidth: 120,
             borderRadius: 12,
-            fontWeight: "bold",
-            backgroundColor: statusColors[status[r]] || "#bdbdbd",
+            backgroundColor: "#f44336",
             color: "white",
             border: "none",
             fontSize: 16,
+            fontWeight: "bold",
             lineHeight: "1.4em"
           }}
         >
-          {r}호<br />
-          {status[r] || "비어있음"}
+          전체<br />초기화
         </button>
-      ))}
+
+        {rooms.map((r) => (
+          <button
+            key={r}
+            onClick={() => cycle(r)}
+            style={{
+              padding: 16,
+              minWidth: 120,
+              borderRadius: 12,
+              fontWeight: "bold",
+              backgroundColor: statusColors[status[r]] || "#bdbdbd",
+              color: "white",
+              border: "none",
+              fontSize: 16,
+              lineHeight: "1.4em"
+            }}
+          >
+            {r}호<br />
+            {status[r] || "비어있음"}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
