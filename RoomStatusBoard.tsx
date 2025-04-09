@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
+// Supabase 전체 URL 및 anon 키 (말줄임 없이 완전한 값)
 const supabase = createClient(
   "https://vgskyyihyqkpxjhsngzb.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnc2t5eWloeXFrcHhqaHNuZ3piIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyMjI3MTEsImV4cCI6MjA1OTc5ODcxMX0.JeKYryWZbC2Fr49lHT0sp54Mcc9jjqMwme6AhNb3Gz8"
@@ -19,27 +20,32 @@ export default function RoomStatusBoard() {
   const [status, setStatus] = useState({});
 
   useEffect(() => {
-    const fetchStatus = async () => {
-      const { data, error } = await supabase.from("rooms").select("room, status");
-      console.log("📦 Supabase data:", data);
-      console.log("⚠️ Supabase error:", error);
-
-      if (data && data.length > 0) {
-        const state = {};
-        data.forEach(({ room, status }) => {
-          state[room] = status;
-        });
-        setStatus(state);
+    supabase.from("rooms").select("room, status").then(({ data, error }) => {
+      if (error) {
+        console.error("Supabase error:", error);
+        return;
       }
-    };
 
-    fetchStatus();
+      const state = {};
+      rooms.forEach((r) => {
+        const found = data?.find((d) => d.room === r);
+        state[r] = found ? found.status : "비어있음"; // ❗ 기본값 자동 지정
+      });
+
+      setStatus(state);
+    });
   }, []);
 
   const cycle = async (room) => {
-    const next = statusOrder[(statusOrder.indexOf(status[room]) + 1) % statusOrder.length];
+    const current = status[room] || "비어있음";
+    const next = statusOrder[(statusOrder.indexOf(current) + 1) % statusOrder.length];
     setStatus({ ...status, [room]: next });
-    await supabase.from("rooms").upsert({ room, status: next, updated_at: new Date().toISOString() });
+
+    await supabase.from("rooms").upsert({
+      room,
+      status: next,
+      updated_at: new Date().toISOString()
+    });
   };
 
   return (
@@ -57,9 +63,11 @@ export default function RoomStatusBoard() {
             color: "white",
             border: "none",
             fontSize: 16,
+            lineHeight: "1.4em"
           }}
         >
-          {r}호<br />{status[r] || "불러오는 중..."}
+          {r}호<br />
+          {status[r] || "비어있음"}
         </button>
       ))}
     </div>
