@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -18,84 +17,83 @@ const statusColors = {
 
 export default function RoomStatusBoard() {
   const [status, setStatus] = useState({});
+  const [editMode, setEditMode] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from("rooms").select("room, status").then(({ data, error }) => {
-      if (error) {
-        console.error("Supabase error:", error);
-        return;
-      }
-
+    supabase.from("rooms").select("room, status").then(({ data }) => {
       const state = {};
-      rooms.forEach((r) => {
-        const found = data?.find((d) => d.room === r);
-        state[r] = found ? found.status : "비어있음";
-      });
-
+      data?.forEach(({ room, status }) => state[room] = status);
       setStatus(state);
+      setLoading(false);
     });
   }, []);
 
   const cycle = async (room) => {
-    const current = status[room] || "비어있음";
-    const next = statusOrder[(statusOrder.indexOf(current) + 1) % statusOrder.length];
+    if (!editMode || loading) return;
+    const next = statusOrder[(statusOrder.indexOf(status[room]) + 1) % statusOrder.length];
     setStatus({ ...status, [room]: next });
-
-    await supabase.from("rooms").upsert({
-      room,
-      status: next,
-      updated_at: new Date().toISOString()
-    });
+    await supabase.from("rooms").upsert({ room, status: next, updated_at: new Date().toISOString() });
   };
 
   const resetAll = async () => {
-    const updates = rooms.map((room) => ({
-      room,
-      status: "비어있음",
-      updated_at: new Date().toISOString()
-    }));
+    if (!editMode || loading) return;
+    const updates = rooms.map((room) => ({ room, status: "비어있음", updated_at: new Date().toISOString() }));
     setStatus(Object.fromEntries(rooms.map(r => [r, "비어있음"])));
     await supabase.from("rooms").upsert(updates);
   };
 
   return (
-    <div style={{ padding: 10 }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+    <div style={{ padding: 16, display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+        <button
+          disabled={loading}
+          onClick={() => setEditMode(!editMode)}
+          style={{
+            padding: 16,
+            minWidth: 100,
+            borderRadius: 12,
+            fontWeight: "bold",
+            backgroundColor: editMode ? "#2196f3" : "#eeeeee",
+            color: editMode ? "white" : "#333",
+            border: "1px solid #ccc",
+            fontSize: 16
+          }}>
+          {editMode ? "편집 중" : "편집"}
+        </button>
+
         <button
           onClick={resetAll}
           style={{
             padding: 16,
-            minWidth: 120,
+            minWidth: 100,
             borderRadius: 12,
+            fontWeight: "bold",
             backgroundColor: "#f44336",
             color: "white",
             border: "none",
-            fontSize: 16,
-            fontWeight: "bold",
-            lineHeight: "1.4em"
-          }}
-        >
+            fontSize: 16
+          }}>
           전체<br />초기화
         </button>
+      </div>
 
-        {rooms.map((r) => (
-          <button
-            key={r}
-            onClick={() => cycle(r)}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
+        {rooms.map(r => (
+          <button key={r} onClick={() => cycle(r)} disabled={loading}
             style={{
               padding: 16,
-              minWidth: 120,
+              minWidth: 100,
               borderRadius: 12,
               fontWeight: "bold",
               backgroundColor: statusColors[status[r]] || "#bdbdbd",
               color: "white",
               border: "none",
               fontSize: 16,
-              lineHeight: "1.4em"
-            }}
-          >
-            {r}호<br />
-            {status[r] || "비어있음"}
+              opacity: editMode ? 1 : 0.6,
+              cursor: editMode ? "pointer" : "not-allowed"
+            }}>
+            {r}호<br />{status[r] || "불러오는 중..."}
           </button>
         ))}
       </div>
