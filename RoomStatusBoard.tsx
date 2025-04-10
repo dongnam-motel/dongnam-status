@@ -17,27 +17,27 @@ const statusColors = {
 
 export default function RoomStatusBoard() {
   const [status, setStatus] = useState({});
-  const [editMode, setEditMode] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [editable, setEditable] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     supabase.from("rooms").select("room, status").then(({ data }) => {
       const state = {};
       data?.forEach(({ room, status }) => state[room] = status);
       setStatus(state);
-      setLoading(false);
+      setLoaded(true);
     });
   }, []);
 
   const cycle = async (room) => {
-    if (!editMode || loading) return;
+    if (!editable || !loaded) return;
     const next = statusOrder[(statusOrder.indexOf(status[room]) + 1) % statusOrder.length];
     setStatus({ ...status, [room]: next });
     await supabase.from("rooms").upsert({ room, status: next, updated_at: new Date().toISOString() });
   };
 
   const resetAll = async () => {
-    if (!editMode || loading) return;
+    if (!editable || !loaded) return;
     const updates = rooms.map((room) => ({ room, status: "비어있음", updated_at: new Date().toISOString() }));
     setStatus(Object.fromEntries(rooms.map(r => [r, "비어있음"])));
     await supabase.from("rooms").upsert(updates);
@@ -47,19 +47,22 @@ export default function RoomStatusBoard() {
     <div style={{ padding: 16, display: "flex", flexDirection: "column", alignItems: "center" }}>
       <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
         <button
-          disabled={loading}
-          onClick={() => setEditMode(!editMode)}
+          onClick={() => {
+            if (!loaded) return;
+            setEditable(!editable);
+          }}
           style={{
             padding: 16,
             minWidth: 100,
             borderRadius: 12,
             fontWeight: "bold",
-            backgroundColor: editMode ? "#2196f3" : "#eeeeee",
-            color: editMode ? "white" : "#333",
-            border: "1px solid #ccc",
-            fontSize: 16
+            backgroundColor: loaded ? (editable ? "#4caf50" : "#9e9e9e") : "#bdbdbd",
+            color: "white",
+            border: "none",
+            fontSize: 16,
+            pointerEvents: loaded ? "auto" : "none"
           }}>
-          {editMode ? "편집 중" : "편집"}
+          {loaded ? (editable ? "변경 가능" : "변경 불가 (클릭)") : "접속 중..."}
         </button>
 
         <button
@@ -80,7 +83,7 @@ export default function RoomStatusBoard() {
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
         {rooms.map(r => (
-          <button key={r} onClick={() => cycle(r)} disabled={loading}
+          <button key={r} onClick={() => cycle(r)} disabled={!loaded}
             style={{
               padding: 16,
               minWidth: 100,
@@ -90,8 +93,8 @@ export default function RoomStatusBoard() {
               color: "white",
               border: "none",
               fontSize: 16,
-              opacity: editMode ? 1 : 0.6,
-              cursor: editMode ? "pointer" : "not-allowed"
+              opacity: editable ? 1 : 0.6,
+              cursor: editable ? "pointer" : "not-allowed"
             }}>
             {r}호<br />{status[r] || "불러오는 중..."}
           </button>
