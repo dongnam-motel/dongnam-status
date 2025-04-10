@@ -36,12 +36,21 @@ export default function RoomStatusBoard() {
     await supabase.from("rooms").upsert({ room, status: next, updated_at: new Date().toISOString() });
   };
 
-  const resetAll = async () => {
-    if (!editable || !loaded) return;
-    const updates = rooms.map((room) => ({ room, status: "비어있음", updated_at: new Date().toISOString() }));
-    setStatus(Object.fromEntries(rooms.map(r => [r, "비어있음"])));
-    await supabase.from("rooms").upsert(updates);
-  };
+ const resetAll = async () => {
+  if (!editable || !loaded) return;
+
+  const confirmReset = window.confirm("정말 모든 객실 상태를 '비어있음'으로 초기화하시겠습니까?");
+  if (!confirmReset) return;
+
+  const updates = rooms.map((room) => ({
+    room,
+    status: "비어있음",
+    updated_at: new Date().toISOString()
+  }));
+
+  setStatus(Object.fromEntries(rooms.map(r => [r, "비어있음"])));
+  await supabase.from("rooms").upsert(updates);
+};
 
   return (
     <div style={{ padding: 16, display: "flex", flexDirection: "column", alignItems: "center" }}>
